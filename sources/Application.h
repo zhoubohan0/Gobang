@@ -8,7 +8,7 @@
 #include "raylib.h"
 #include "Scene.h"
 
-#define WINDOW_TITLE "Back Gammon"
+#define WINDOW_TITLE "GoBang"
 
 class Application {
 private:

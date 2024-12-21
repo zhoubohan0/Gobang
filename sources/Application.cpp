@@ -37,7 +37,7 @@ void Application::WindowsInit() {
     SetTargetFPS(60);
     Image icon = LoadImage(ASSETS_PATH"icon.png");
     SetWindowIcon(icon);
-    GuiSetStyle(DEFAULT, TEXT_SIZE, 23);
+    GuiSetStyle(DEFAULT, TEXT_SIZE, 25);
 }
 
 void Application::WindowsExist() {
