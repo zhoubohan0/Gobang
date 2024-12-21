@@ -87,7 +87,7 @@ void Scene::Update() {
             ...
 
             if (SomeoneWin(roundVec)) {
-                m_gameObjects.push_back(new Message(cnt % 2 ? "P1 Win!!" : "P2 Win!!"));
+                m_gameObjects.push_back(new Message(cnt % 2 ? "Black Wins!!" : "White Wins!!"));
                 IsWindowsStatic = true;
             }
             return;

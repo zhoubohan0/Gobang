@@ -9,7 +9,7 @@ highLightChess::highLightChess(Chess *chess) : m_chess(chess) {
 }
 
 void highLightChess::Draw() {
-    DrawCircleV(m_chess->m_realCoord, 30, BLUE);
+    DrawCircleV(m_chess->m_realCoord, 30, RED);
 }
 
 Event highLightChess::Update() {

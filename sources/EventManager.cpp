@@ -39,13 +39,13 @@ void EventManager::Update() {
                 break;
             case EVENT_IS_P1_WIN:
                 if (!IS_GAME_OVER) {
-                    Scene::AddObject(new Message("P1 Win!!"));
+                    Scene::AddObject(new Message("Black Wins!!"));
                 }
                 IS_GAME_OVER = true;
                 break;
             case EVENT_IS_P2_WIN:
                 if (!IS_GAME_OVER) {
-                    Scene::AddObject(new Message("P2 Win!!"));
+                    Scene::AddObject(new Message("White Wins!!"));
                 }
                 IS_GAME_OVER = true;
                 break;

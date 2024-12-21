@@ -8,12 +8,10 @@
 
 void ChessBoard::Draw() {
     for (int i = 1; i < 16; ++i) {
-        DrawLineEx(changeStanderCoordToRaw({1, i}),
-                   changeStanderCoordToRaw({15, i}), 3, GRAY);
+        DrawLineEx(changeStanderCoordToRaw({1, i}), changeStanderCoordToRaw({15, i}), 3, GRAY);
     }
     for (int i = 1; i < 16; ++i) {
-        DrawLineEx(changeStanderCoordToRaw({i, 1}),
-                   changeStanderCoordToRaw({i, 15}), 3, GRAY);
+        DrawLineEx(changeStanderCoordToRaw({i, 1}), changeStanderCoordToRaw({i, 15}), 3, GRAY);
     }
 }
 
