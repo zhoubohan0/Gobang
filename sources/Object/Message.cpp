@@ -11,10 +11,10 @@ Message::Message(const char *message) {
 }
 
 void Message::Draw() {
-    const int w = 200, h = 80;
+    const int w = 300, h = 80;
     int x = 500 - w / 2, y = 60 - h / 2;
     DrawRectangle(x, y, w, h, { 255, 200, 0, 100 });
-    DrawText(m_message, x + 30, y + 20, 40, DARKBROWN);
+    DrawText(m_message, x + 40, y + 20, 40, DARKBROWN);
 }
 
 Event Message::Update() {

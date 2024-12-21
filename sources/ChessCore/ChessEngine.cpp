@@ -58,7 +58,7 @@ Coord ChessEngine::getMaxCoord() {
     PROFILE_FUNCTION
     Coord ret{};
     if (isNoChessDown()) {
-        return {8, 8};
+        return {8, 8}; // center
     }
     bool blackNow = isBlackNow();
     abSearch(searchFloor, -SEARCH_INFINITY, SEARCH_INFINITY, blackNow, ret);
@@ -107,7 +107,7 @@ int ChessEngine::abSearch(int floor, int alpha, int beta, bool isBlackNow, Coord
 std::vector<ScoreCoord> ChessEngine::generatePossibleMove(bool isBlackNow) {
     PROFILE_FUNCTION
     std::vector<ScoreCoord> ret;
-    ret.reserve(225);
+    ret.reserve(225); // 15 * 15
     for (int x = 1; x <= 15; ++x) {
         for (int y = 1; y <= 15; ++y) {
             if (thereIsNoChessNearby({x, y}))continue;
@@ -116,7 +116,7 @@ std::vector<ScoreCoord> ChessEngine::generatePossibleMove(bool isBlackNow) {
             m_map[x][y] = isBlackNow ? BLACK_CHESS : WHITE_CHESS;
             int myScore = evaluateOnePoint(isBlackNow, {x, y});//我下这点我会得到的分数
             m_map[x][y] = isBlackNow ? WHITE_CHESS : BLACK_CHESS;
-            int rivalScore = evaluateOnePoint(!isBlackNow, {x, y});//如果我不下这点则敌方会得到的分数
+            int rivalScore = evaluateOnePoint(!isBlackNow, {x, y});//敌方下这点会得到的分数
             m_map[x][y] = NO_CHESS;
             ret.push_back({(myScore - baseScore) + (rivalScore - (-baseScore)), {x, y}});//要让我获益最大 或者能让敌方获益最大的点下棋
         }
@@ -142,8 +142,7 @@ int ChessEngine::checkByStep(Coord now, int x_step, int y_step) {
     auto origin = now;
     now.x += x_step;
     now.y += y_step;
-    while (isOnBoard(now) and
-           (m_map[now.x][now.y] == m_map[origin.x][origin.y])) {
+    while (isOnBoard(now) and (m_map[now.x][now.y] == m_map[origin.x][origin.y])) {
         cc++;
         now.x += x_step;
         now.y += y_step;
@@ -255,7 +254,7 @@ inline int ChessEngine::getLineScore(const char *line, bool isBlackNow) {
            -blackEngine.ACSearch(line) + whiteEngine.ACSearch(line);
 }
 
-bool ChessEngine::isBlackNow() {
+bool ChessEngine::isBlackNow() { // TODO
     PROFILE_FUNCTION
     int blackCC = 0, whiteCC = 0;
     for (int i = 1; i <= 15; ++i) {
@@ -302,7 +301,7 @@ bool ChessEngine::isNoChessDown() {
     return true;
 }
 
-inline bool ChessEngine::thereIsNoChessNearby(Coord coord) {
+inline bool ChessEngine::thereIsNoChessNearby(Coord coord) { // 5 * 5 的范围内没有棋子
     for (int i = max(1, coord.x - 2); i <= min(15, coord.x + 2); ++i) {
         for (int j = max(1, coord.y - 2); j <= min(15, coord.y + 2); ++j) {
             if (m_map[i][j] != NO_CHESS)return false;
