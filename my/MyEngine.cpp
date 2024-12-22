@@ -1,6 +1,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <queue>
 #include <cassert>
 #include <iostream>
 #include <cstring>
@@ -13,7 +14,6 @@ using namespace std;
 const int NO_CHESS = 0;
 const int BLACK_CHESS = 1;
 const int WHITE_CHESS = 2;
-
 
 struct ACNode {
     ACNode(int p, char c)
@@ -46,6 +46,15 @@ struct ScoreCoord {
     int score;
     Coord coord;
 };
+
+struct CompareScoreCoord {
+    bool operator()(const ScoreCoord& a, const ScoreCoord& b) {
+        // Return true if 'a' should come after 'b' (lower score, for descending order)
+        return a.score < b.score;
+    }
+};
+
+typedef std::priority_queue<ScoreCoord, std::vector<ScoreCoord>, CompareScoreCoord> ScoreCoordQueue;
 
 class ACEngine {
 public:
@@ -174,6 +183,7 @@ public:// private:
 public:
     static int searchFloor;
     static bool isBlack;
+    static int maxMoveCount;
 
 public:
     ChessEngine(){}
@@ -211,7 +221,9 @@ public:
 
 public:// private:
     //[customize]
-    void printMap(){
+    static ACEngine blackForbidden;
+    static ACEngine blackFiveLoose;
+    static void printMap(){
         for (int i = 1; i <= 15; ++i) {
             for (int j = 1; j <= 15; ++j) {
                 cout << m_map[i][j] << " ";
@@ -243,6 +255,7 @@ public:// private:
             case BLACK_CHESS:
                 return '1';
             default:
+                cout<<"";
                 assert(false);
         }
     }
@@ -255,6 +268,73 @@ public:// private:
             }
         }
         return true;
+    }
+
+    static inline bool isValidInMap(Coord coord){
+        bool isEmpty = m_map[coord.x][coord.y] == NO_CHESS;
+        if (!isBlack) return isEmpty;
+        else{
+            if (!isEmpty) return false;
+            m_map[coord.x][coord.y] = BLACK_CHESS;
+            bool isforbodden = isForbidden(coord);
+            m_map[coord.x][coord.y] = NO_CHESS;
+            return !isforbodden;
+        }
+    }
+
+    static int getLineForbiddenScore(const char *line, bool isBlack){
+        assert(isBlack);
+        int forbiddenScore = blackForbidden.ACSearch(line);
+        if (forbiddenScore <= -10000) return -1; // 长连
+        else if (forbiddenScore <= -1){
+            int fiveScore = blackFiveLoose.ACSearch(line);
+            return fiveScore > 0? fiveScore: -1;
+        } 
+        return 0;
+    }
+
+    //评估一个点所在位置放射状的四条线的评分和 越大对当前棋子越有利
+    static int isForbidden(Coord coord){
+        int ret = 0;
+        char line[17] = {};
+        //coord所在位置的竖向
+        for (int x = 1, lineIndex = 0; x <= 15; ++x, lineIndex++) {
+            line[lineIndex] = chessChar(m_map[x][coord.y]);
+        }
+        ret += getLineForbiddenScore(line, isBlack);
+        memset(line, 0, sizeof line);
+        //coord所在位置的横向
+        for (int y = 1, lineIndex = 0; y <= 15; ++y, lineIndex++) {
+            line[lineIndex] = chessChar(m_map[coord.x][y]);
+        }
+        ret += getLineForbiddenScore(line, isBlack);
+        memset(line, 0, sizeof line);
+        // y = -x + y0 + x0
+        int b = coord.x + coord.y;
+        if (b <= 16) {
+            for (int x = b - 1, y = 1, lineIndex = 0; x >= 1; x--, y++, lineIndex++) {
+                line[lineIndex] = chessChar(m_map[x][y]);
+            }
+        } else {
+            for (int x = 15, y = b - 15, lineIndex = 0; y <= 15; x--, y++, lineIndex++) {
+                line[lineIndex] = chessChar(m_map[x][y]);
+            }
+        }
+        ret += getLineForbiddenScore(line, isBlack);
+        memset(line, 0, sizeof line);
+        // y = x + y0 - x0
+        int a = coord.x - coord.y;
+        if (a >= 0) {
+            for (int x = a + 1, y = 1, lineIndex = 0; x <= 15; x++, y++, lineIndex++) {
+                line[lineIndex] = chessChar(m_map[x][y]);
+            }
+        } else {
+            for (int x = 1, y = -a + 1, lineIndex = 0; y <= 15; x++, y++, lineIndex++) {
+                line[lineIndex] = chessChar(m_map[x][y]);
+            }
+        }
+        ret += getLineForbiddenScore(line, isBlack);
+        return ret <= -2;
     }
 
     //没有棋子可以下了
@@ -314,19 +394,19 @@ public:// private:
     static int evaluateOnePoint(bool isBlack, Coord coord){
         int ret = 0;
         char line[17] = {};
-        //coord所在位置的横向
+        //coord所在位置的竖向
         for (int x = 1, lineIndex = 0; x <= 15; ++x, lineIndex++) {
             line[lineIndex] = chessChar(m_map[x][coord.y]);
         }
         ret += getLineScore(line, isBlack);
-        //coord所在位置的竖向
+        memset(line, 0, sizeof line);
+        //coord所在位置的横向
         for (int y = 1, lineIndex = 0; y <= 15; ++y, lineIndex++) {
             line[lineIndex] = chessChar(m_map[coord.x][y]);
         }
         ret += getLineScore(line, isBlack);
         memset(line, 0, sizeof line);
-        //coord所在位置的右上到左下
-        //画图求函数解析式后得出算法
+        // y = -x + y0 + x0
         int b = coord.x + coord.y;
         if (b <= 16) {
             for (int x = b - 1, y = 1, lineIndex = 0; x >= 1; x--, y++, lineIndex++) {
@@ -339,7 +419,7 @@ public:// private:
         }
         ret += getLineScore(line, isBlack);
         memset(line, 0, sizeof line);
-        //coord所在位置的左上到右下
+        // y = x + y0 - x0
         int a = coord.x - coord.y;
         if (a >= 0) {
             for (int x = a + 1, y = 1, lineIndex = 0; x <= 15; x++, y++, lineIndex++) {
@@ -368,7 +448,7 @@ public:// private:
             if (debug)cout << line <<"  " << "score: " << score << endl;
             ret += score;
         }
-        if (debug) cout << "竖向" << ret << endl;
+        if (debug) cout << "横向" << ret << endl;
         //横向
         for (int j = 1; j <= 15; ++j) {
             for (int i = 1, lineIndex = 0; i <= 15; ++i, lineIndex++) {
@@ -376,7 +456,7 @@ public:// private:
             }
             ret += getLineScore(line, isBlack);
         }
-        if (debug) cout << "横向" << ret << endl;
+        if (debug) cout << "竖向" << ret << endl;
         //右上到左下
         for (int i = 5; i <= 15; ++i) {
             memset(line, 0, sizeof line);
@@ -415,38 +495,75 @@ public:// private:
     }
 
     //生成所有可能的走法
-    static std::vector<ScoreCoord> generatePossibleMove(bool isBlack){
-        std::vector<ScoreCoord> ret;
-        ret.reserve(225); // 15 * 15
-        for (int x = 1; x <= 15; ++x) {
-            for (int y = 1; y <= 15; ++y) {
-                if (thereIsNoChessNearby({x, y}))continue;
-                if (m_map[x][y] != NO_CHESS)continue;
+    static ScoreCoordQueue generatePossibleMove(bool isBlack){
+        auto start = std::chrono::high_resolution_clock::now();
+        
+        ScoreCoordQueue ret;
+        int x = 8, y = 8;
+        if ((!thereIsNoChessNearby({x, y}) and isValidInMap({x, y}))){
+            int baseScore = evaluateOnePoint(isBlack, {x, y});//没有落子前的分数
+            m_map[x][y] = isBlack ? BLACK_CHESS : WHITE_CHESS;
+            int myScore = evaluateOnePoint(isBlack, {x, y});//我下这点我会得到的分数
+            m_map[x][y] = isBlack ? WHITE_CHESS : BLACK_CHESS;
+            int rivalScore = evaluateOnePoint(!isBlack, {x, y});//敌方下这点会得到的分数
+            m_map[x][y] = NO_CHESS;
+            ret.push({(myScore - baseScore) + (rivalScore - (-baseScore)), {x, y}});//要让我获益最大 或者能让敌方获益最大的点下棋
+        }
+        int NoChessNearbyCount = 0;
+        int direction = 0, step_size = 1, steps_taken = 0;
+        int directions[4][2] = {
+            {0, 1},  // right
+            {1, 0},  // down
+            {0, -1}, // left
+            {-1, 0}  // up
+        };
+        while(true){
+            for (int i = 0; i < step_size; ++i) {
+                x += directions[direction][0];
+                y += directions[direction][1];
+                if (x < 1 or x > 15 or y < 1 or y > 15) return ret;
+
+                bool isNoChessNearby = thereIsNoChessNearby({x, y});
+                NoChessNearbyCount += isNoChessNearby;
+                if (NoChessNearbyCount > 30) return ret; // prune: 如果周围没有棋子 就停止搜索
+                if (isNoChessNearby or !isValidInMap({x, y}))continue;
                 int baseScore = evaluateOnePoint(isBlack, {x, y});//没有落子前的分数
                 m_map[x][y] = isBlack ? BLACK_CHESS : WHITE_CHESS;
                 int myScore = evaluateOnePoint(isBlack, {x, y});//我下这点我会得到的分数
                 m_map[x][y] = isBlack ? WHITE_CHESS : BLACK_CHESS;
                 int rivalScore = evaluateOnePoint(!isBlack, {x, y});//敌方下这点会得到的分数
                 m_map[x][y] = NO_CHESS;
-                ret.push_back({(myScore - baseScore) + (rivalScore - (-baseScore)), {x, y}});//要让我获益最大 或者能让敌方获益最大的点下棋
+                ret.push({(myScore - baseScore) + (rivalScore - (-baseScore)), {x, y}});//要让我获益最大 或者能让敌方获益最大的点下棋
+            }
+
+            // Change direction
+            direction = (direction + 1) % 4;
+
+            // Increment steps after every two direction changes (right-left, down-up)
+            steps_taken++;
+            if (steps_taken == 2) {
+                step_size++;
+                steps_taken = 0;
             }
         }
-        std::shuffle(ret.begin(), ret.end(), std::mt19937(std::random_device()()));
-        std::sort(ret.begin(), ret.end(), [](const ScoreCoord &a, const ScoreCoord &b) {
-            return a.score > b.score;
-        });
+        
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        int time_consuming = duration.count();
+        cout << "generatePossibleMove took " << time_consuming << "ms" << endl;
+        
         return ret;
     }
     
 
     //alpha-beta剪枝搜索
     static int abSearch(int floor, int alpha, int beta, bool isBlack, Coord &searchResult){
-        int tmpScore, moveCount = 0;
+        int tmpScore, moveCount = maxMoveCount;
         Coord tempSearchResult{};
-        std::vector<ScoreCoord> possibleMove = generatePossibleMove(isBlack);
-        for (auto &now: possibleMove) {
-            moveCount++;
-            if (moveCount > 8) break; //只搜索前8个可能的落子点
+        ScoreCoordQueue possibleMove = generatePossibleMove(isBlack);
+        while(!possibleMove.empty() and moveCount--){
+            auto now = possibleMove.top();
+            possibleMove.pop();
             int x = now.coord.x, y = now.coord.y;
             m_map[x][y] = isBlack ? BLACK_CHESS : WHITE_CHESS;
             if (someoneWin({x, y})) {//如果有人赢了 必定是下这个子的人赢了
@@ -481,7 +598,29 @@ public:// private:
 
 int ChessEngine::m_map[16][16] = {0};
 int ChessEngine::searchFloor = 4;
+int ChessEngine::maxMoveCount = 8;
 bool ChessEngine::isBlack = true;
+
+ACEngine ChessEngine::blackForbidden({
+    {"111111", -10000},       // 长连禁手 - 6子及以上
+    {"011110", -1},       // 活四
+    {"011112", -1},       // 冲四
+    {"211110", -1},       // 冲四
+    {"11110", -1},        // 冲四
+    {"01111", -1},        // 冲四
+    {"11011", -1},        // 跳四
+    {"10111", -1},        // 跳四
+    {"11101", -1},        // 跳四
+    {"011100", -1},       // 活三
+    {"001110", -1},       // 活三
+    {"011010", -1},       // 活三
+    {"010110", -1}        // 活三
+});
+
+ACEngine ChessEngine::blackFiveLoose({
+    {"11111", 1000000},
+});
+
 
 ACEngine ChessEngine::blackEngine({
     {"11111",  50000},
@@ -521,28 +660,26 @@ ACEngine ChessEngine::whiteEngine({
     {"002000", 20},
 });
 
-void test_evaluate(){
+void test_forbidden(){
     ChessEngine engine;
     engine.initMapWithSeq({
-        // {1, 2}, 
-        // {2, 2},
-        // {1, 3},
-        // {2, 3},
-        // {1, 4},
-        // {2, 4},
-        // {1, 5},
-        // {2, 5},
-        // {1, 7},
-        // {2, 7},
-        // {1, 8},
-        // {2, 8},
+        {2,3},
+        {10,1},
+        {4,3},
+        {10,3},
+        {3,2},
+        {10,5},
+        {3,4},
+        {10,7},
+        {5,3},
+        {10,9},
+        {6,3},
+        {10,11},
+        // {7,3},
+        // {10,13},
     });
     engine.printMap();
-    // judge black or white
-    bool isBlack = engine.isBlackNow();
-    cout << "isBlack: " << isBlack << endl;
-    // evaluate board
-    cout << engine.evaluateAll(isBlack) << endl;
+    cout << engine.isValidInMap({3,3}) << endl;
 }
 
 void test_game(){
