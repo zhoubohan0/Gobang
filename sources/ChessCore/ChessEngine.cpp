@@ -154,7 +154,7 @@ int ChessEngine::checkByStep(Coord now, int x_step, int y_step) {
 int ChessEngine::evaluateAll(bool isBlackNow) {
     PROFILE_FUNCTION
     int ret = 0;
-    char line[50] = {};
+    char line[17] = {};
 
     //竖向
     for (int i = 1; i <= 15; ++i) {
@@ -206,7 +206,7 @@ int ChessEngine::evaluateAll(bool isBlackNow) {
 int ChessEngine::evaluateOnePoint(bool isBlackNow, Coord coord) {
     PROFILE_FUNCTION
     int ret = 0;
-    char line[50] = {};
+    char line[17] = {};
     //coord所在位置的横向
     for (int x = 1, lineIndex = 0; x <= 15; ++x, lineIndex++) {
         line[lineIndex] = chessChar(m_map[x][coord.y]);

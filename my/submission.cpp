@@ -1,4 +1,5 @@
 #include <string>
+#include <cstdlib>
 #include <vector>
 #include <map>
 #include <queue>
@@ -8,6 +9,7 @@
 #include <algorithm>
 #include <random>
 #include <chrono>
+#include "jsoncpp/json.h" 
 
 
 using namespace std;
@@ -40,6 +42,9 @@ struct Coord {
     friend ostream& operator<<(ostream& os, const Coord& coord) {
         os << "(" << coord.x << ", " << coord.y << ")";
         return os;
+    }
+    bool operator==(const Coord& other) const {
+        return x == other.x && y == other.y;
     }
 };
 
@@ -195,19 +200,19 @@ public:
 
     //返回棋盘的最大得分点
     static Coord getMaxCoord(){
-        auto start = std::chrono::high_resolution_clock::now();
+        // auto start = std::chrono::high_resolution_clock::now();
         
         Coord ret{};
         if (isEmptyBoard()) return {8, 8}; // center
         // bool isBlack = isBlackNow();
         abSearch(searchFloor, -SEARCH_INFINITY, SEARCH_INFINITY, isBlack, ret);
         
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        int time_consuming = duration.count();
-        cout << (isBlack ? "black" : "white") << " action took " << time_consuming << "ms";
-        if (time_consuming > 1000) cout << " > 1s alert!!!!!!!";
-        cout << endl;
+        // auto end = std::chrono::high_resolution_clock::now();
+        // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        // int time_consuming = duration.count();
+        // cout << (isBlack ? "black" : "white") << " action took " << time_consuming << "ms";
+        // if (time_consuming > 1000) cout << " > 1s alert!!!!!!!";
+        // cout << endl;
         
         return ret;
     }
@@ -224,6 +229,7 @@ public:// private:
     //[customize]
     static ACEngine blackForbidden;
     static ACEngine blackFiveLoose;
+    static Coord blockCenter;
     static void printMap(){
         for (int i = 1; i <= 15; ++i) {
             for (int j = 1; j <= 15; ++j) {
@@ -437,7 +443,7 @@ public:// private:
     }
 
     //评估整个棋盘 如果是黑棋返回黑棋的得分 如果是白棋返回白棋的得分
-    static int evaluateAll(bool isBlack, bool debug = false){
+    static int evaluateAll(bool isBlack){
         int ret = 0;
         char line[17] = {};
 
@@ -447,10 +453,8 @@ public:// private:
                 line[lineIndex] = chessChar(m_map[i][j]);
             }
             int score = getLineScore(line, isBlack);
-            if (debug)cout << line <<"  " << "score: " << score << endl;
             ret += score;
         }
-        if (debug) cout << "横向" << ret << endl;
         //横向
         for (int j = 1; j <= 15; ++j) {
             for (int i = 1, lineIndex = 0; i <= 15; ++i, lineIndex++) {
@@ -458,7 +462,6 @@ public:// private:
             }
             ret += getLineScore(line, isBlack);
         }
-        if (debug) cout << "竖向" << ret << endl;
         //右上到左下
         for (int i = 5; i <= 15; ++i) {
             memset(line, 0, sizeof line);
@@ -467,7 +470,6 @@ public:// private:
             }
             ret += getLineScore(line, isBlack);
         }
-        if (debug) cout << "右上到左下" << ret << endl;
         for (int i = 2; i <= 11; ++i) {
             memset(line, 0, sizeof line);
             for (int x = 15, y = 15 + i - x, lineIndex = 0; y <= 15; x--, y++, lineIndex++) {
@@ -475,7 +477,6 @@ public:// private:
             }
             ret += getLineScore(line, isBlack);
         }
-        if (debug) cout << "右上到左下" << ret << endl;
         // 左上到右下
         for (int i = 10; i >= 0; --i) {
             memset(line, 0, sizeof line);
@@ -484,7 +485,6 @@ public:// private:
             }
             ret += getLineScore(line, isBlack);
         }
-        if (debug) cout << "左上到右下" << ret << endl;
         for (int i = -1; i >= -10; --i) {
             memset(line, 0, sizeof line);
             for (int y = 1, x = y - i, lineIndex = 0; x <= 15; x++, y++, lineIndex++) {
@@ -492,16 +492,15 @@ public:// private:
             }
             ret += getLineScore(line, isBlack);
         }
-        if (debug) cout << "左上到右下" << ret << endl;
-        return ret;
+        return ret; 
     }
 
     //生成所有可能的走法
     static ScoreCoordQueue generatePossibleMove(bool isBlack){
-        auto start = std::chrono::high_resolution_clock::now();
+        // auto start = std::chrono::high_resolution_clock::now();
         
         ScoreCoordQueue ret;
-        int x = 8, y = 8;
+        int x = blockCenter.x, y = blockCenter.y;
         if ((!thereIsNoChessNearby({x, y}) and isValidInMap({x, y}))){
             int baseScore = evaluateOnePoint(isBlack, {x, y});//没有落子前的分数
             m_map[x][y] = isBlack ? BLACK_CHESS : WHITE_CHESS;
@@ -527,7 +526,7 @@ public:// private:
 
                 bool isNoChessNearby = thereIsNoChessNearby({x, y});
                 NoChessNearbyCount += isNoChessNearby;
-                if (NoChessNearbyCount > 30) return ret; // prune: 如果周围没有棋子 就停止搜索
+                if (NoChessNearbyCount > 25) return ret; // prune: 如果周围没有棋子 就停止搜索
                 if (isNoChessNearby or !isValidInMap({x, y}))continue;
                 int baseScore = evaluateOnePoint(isBlack, {x, y});//没有落子前的分数
                 m_map[x][y] = isBlack ? BLACK_CHESS : WHITE_CHESS;
@@ -549,10 +548,10 @@ public:// private:
             }
         }
         
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        int time_consuming = duration.count();
-        cout << "generatePossibleMove took " << time_consuming << "ms" << endl;
+        // auto end = std::chrono::high_resolution_clock::now();
+        // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        // int time_consuming = duration.count();
+        // cout << "generatePossibleMove took " << time_consuming << "ms" << endl;
         
         return ret;
     }
@@ -585,11 +584,11 @@ public:// private:
             }
             tmpScore = -abSearch(floor - 1, -beta, -alpha, !isBlack, tempSearchResult);//不然得分就是我下了之后的对方的所能得到的最高分取负
             m_map[x][y] = NO_CHESS;
-            if (tmpScore >= beta) {// maximize layer default
-                return beta; // brother's 
+            if (tmpScore >= beta) {
+                return beta;
             }
             if (tmpScore > alpha) {//取对方尽所有努力后得到最大值中的最小的一个 取负值后变成最大的一个
-                alpha = tmpScore; // child's max
+                alpha = tmpScore;
                 searchResult = {x, y};
             }
         }
@@ -662,52 +661,53 @@ ACEngine ChessEngine::whiteEngine({
     {"002000", 20},
 });
 
-void test_forbidden(){
-    ChessEngine engine;
-    engine.initMapWithSeq({
-        {2,3},
-        {10,1},
-        {4,3},
-        {10,3},
-        {3,2},
-        {10,5},
-        {3,4},
-        {10,7},
-        {5,3},
-        {10,9},
-        {6,3},
-        {10,11},
-        // {7,3},
-        // {10,13},
-    });
-    engine.printMap();
-    cout << engine.isValidInMap({3,3}) << endl;
-}
-
-void test_game(){
-    ChessEngine engine;
-    engine.initMapWithSeq({});
-    for(int round = 1; round <=15*15/2; ++round){
-        Coord black_step = engine.getMaxCoord();
-        engine.step(black_step); 
-        if(engine.someoneWin(black_step)){
-            engine.printMap();
-            cout << "round " << round << " black win!" << endl;
-            break;
-        }
-        Coord white_step = engine.getMaxCoord();
-        engine.step(white_step);
-        if(engine.someoneWin(white_step)){
-            engine.printMap();
-            cout << "round " << round << " white win!" << endl;
-            break;
-        }
-        engine.printMap();
-        printf("\n");
+int getMedian(std::vector<int>& nums) {
+    size_t n = nums.size();
+    if (n == 0) {
+        std::cerr << "Error: Empty vector. No median exists.\n";
+        return 8;  // Return an error value for empty vector
     }
+    std::nth_element(nums.begin(), nums.begin() + n / 2, nums.end());
+    return n % 2 ? nums[n / 2] : (nums[n / 2 - 1] + nums[n / 2]) / 2;
 }
 
-int main() {
-    test_game();
-    return 0;
+Coord ChessEngine::blockCenter = {8, 8};
+
+int main()
+{
+	// 读入JSON
+	string str;
+	getline(cin, str);
+	Json::Reader reader;
+	Json::Value input;
+	reader.parse(str, input); 
+	// 分析自己收到的输入和自己过往的输出，并恢复状态
+    vector<Coord> moves;
+    vector<int> x_list, y_list;
+    int turnID = input["responses"].size();
+	for (int i = 0; i <= turnID; i++) {
+        int xreq = input["requests"][i]["x"].asInt() + 1, yreq = input["requests"][i]["y"].asInt() + 1;
+		moves.push_back({xreq, yreq});
+        if(xreq >= 1 and xreq <= 15) x_list.push_back(xreq);
+        if(yreq >= 1 and yreq <= 15) y_list.push_back(yreq);
+		if (i < turnID){
+            int xres = input["responses"][i]["x"].asInt() + 1, yres = input["responses"][i]["y"].asInt() + 1;
+            moves.push_back({xres, yres});
+            if(xres >= 1 and xres <= 15) x_list.push_back(xres);
+            if(yres >= 1 and yres <= 15) y_list.push_back(yres);
+        } 
+	}
+    ChessEngine::blockCenter.x = getMedian(x_list);
+    ChessEngine::blockCenter.y = getMedian(y_list);
+	ChessEngine engine;
+    engine.initMapWithSeq(moves);
+	// 输出决策JSON
+	Json::Value action_response;
+    Coord action = engine.getMaxCoord();
+    action_response["x"] = action.x - 1;
+    action_response["y"] = action.y - 1;
+
+	Json::FastWriter writer;
+	cout << writer.write(action_response) << endl;
+	return 0;
 }
