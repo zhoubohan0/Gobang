@@ -65,7 +65,7 @@ void EventManager::Update() {
                 loadState();
                 break;
             case EVENT_SET_DIFFICULTY_LOW:
-                ChessEngine::searchFloor = 4;
+                ChessEngine::searchFloor = 3;
                 break;
             case EVENT_SET_DIFFICULTY_MEDIUM:
                 ChessEngine::searchFloor = 5;

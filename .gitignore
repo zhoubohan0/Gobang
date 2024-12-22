@@ -9,3 +9,4 @@ CMakeSettings.json
 cmake-build-release/
 /_deps/
 /CMakeFiles/
+!build/exe.sh

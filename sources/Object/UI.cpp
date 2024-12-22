@@ -28,7 +28,7 @@ Event UI::Update() {
             IS_GAMING = true;
             return Event::EVENT_IS_WANT_TO_START;
         }
-        if (GuiButton((Rectangle) {360, 660, 300, 50}, "RESUME")) {
+        if (GuiButton((Rectangle) {360, 660, 300, 50}, "LOAD")) {
             IS_GAMING = true;
             return Event::EVENT_IS_WANT_TO_RESUME;
         }
