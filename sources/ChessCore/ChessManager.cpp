@@ -23,6 +23,7 @@ void ChessManager::downOneStep(Coord coord) {
     m_stackCoord.push(coord);//记录下的子
     m_map[coord.x][coord.y] = isBlackDownNow() ? BLACK_CHESS : WHITE_CHESS;//选了一个颜色
     m_chessNum++;//下了
+    saveState();
 }
 
 //返回：现在是轮到黑下了吗？
