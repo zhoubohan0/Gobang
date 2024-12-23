@@ -23,6 +23,7 @@ void ChessManager::downOneStep(Coord coord) {
     m_stackCoord.push(coord);//记录下的子
     m_map[coord.x][coord.y] = isBlackDownNow() ? BLACK_CHESS : WHITE_CHESS;//选了一个颜色
     m_chessNum++;//下了
+    ChessEngine::isBlack = ChessEngine::isBlackNow();
     saveState();
 }
 
@@ -69,7 +70,8 @@ bool ChessManager::isP2Turn() {
 }
 
 bool ChessManager::isValidInMap(Coord coord) {
-    return m_map[coord.x][coord.y] == NO_CHESS; // TODO
+    // return m_map[coord.x][coord.y] == NO_CHESS; // TODO
+    return ChessEngine::isValidInMap(coord);
 }
 
 bool ChessManager::thereIsNoComputer() {

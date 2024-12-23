@@ -16,6 +16,16 @@ const int NO_CHESS = 0;
 const int BLACK_CHESS = 1;
 const int WHITE_CHESS = 2;
 
+int getMedian(std::vector<int>& nums) {
+    size_t n = nums.size();
+    if (n == 0) {
+        std::cerr << "Error: Empty vector. No median exists.\n";
+        return 8;  // Return an error value for empty vector
+    }
+    std::nth_element(nums.begin(), nums.begin() + n / 2, nums.end());
+    return n % 2 ? nums[n / 2] : (nums[n / 2 - 1] + nums[n / 2]) / 2;
+}
+
 struct ACNode {
     ACNode(int p, char c)
             : ch(c),
@@ -181,6 +191,7 @@ public:// private:
     static int m_map[16][16];
     static ACEngine blackEngine;
     static ACEngine whiteEngine;
+    static vector<int> xstack, ystack;
 public:
     static int searchFloor;
     static bool isBlack;
@@ -205,9 +216,9 @@ public:
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         int time_consuming = duration.count();
-        cout << (isBlack ? "black" : "white") << " action took " << time_consuming << "ms";
-        if (time_consuming > 1000) cout << " > 1s alert!!!!!!!";
-        cout << endl;
+        std::cout << (isBlack ? "black" : "white") << " action took " << time_consuming << "ms";
+        if (time_consuming > 1000) std::cout << " > 1s alert!!!!!!!";
+        std::cout << endl;
         
         return ret;
     }
@@ -227,9 +238,9 @@ public:// private:
     static void printMap(){
         for (int i = 1; i <= 15; ++i) {
             for (int j = 1; j <= 15; ++j) {
-                cout << m_map[i][j] << " ";
+                std::cout << m_map[i][j] << " ";
             }
-            cout << endl;
+            std::cout << endl;
         }
     }
 
@@ -238,6 +249,7 @@ public:// private:
         for (auto &coord: seq) {
             if (coord.x < 1 or coord.x > 15 or coord.y < 1 or coord.y > 15) continue;
             m_map[coord.x][coord.y] = curChess;
+            xstack.push_back(coord.x), ystack.push_back(coord.y);
             curChess = WHITE_CHESS + BLACK_CHESS - curChess;
         }
     }
@@ -257,7 +269,7 @@ public:// private:
             case BLACK_CHESS:
                 return '1';
             default:
-                cout<<"";
+                std::cout<<"";
                 assert(false);
         }
     }
@@ -447,10 +459,10 @@ public:// private:
                 line[lineIndex] = chessChar(m_map[i][j]);
             }
             int score = getLineScore(line, isBlack);
-            if (debug)cout << line <<"  " << "score: " << score << endl;
+            if (debug)std::cout << line <<"  " << "score: " << score << endl;
             ret += score;
         }
-        if (debug) cout << "横向" << ret << endl;
+        if (debug) std::cout << "横向" << ret << endl;
         //横向
         for (int j = 1; j <= 15; ++j) {
             for (int i = 1, lineIndex = 0; i <= 15; ++i, lineIndex++) {
@@ -458,7 +470,7 @@ public:// private:
             }
             ret += getLineScore(line, isBlack);
         }
-        if (debug) cout << "竖向" << ret << endl;
+        if (debug) std::cout << "竖向" << ret << endl;
         //右上到左下
         for (int i = 5; i <= 15; ++i) {
             memset(line, 0, sizeof line);
@@ -467,7 +479,7 @@ public:// private:
             }
             ret += getLineScore(line, isBlack);
         }
-        if (debug) cout << "右上到左下" << ret << endl;
+        if (debug) std::cout << "右上到左下" << ret << endl;
         for (int i = 2; i <= 11; ++i) {
             memset(line, 0, sizeof line);
             for (int x = 15, y = 15 + i - x, lineIndex = 0; y <= 15; x--, y++, lineIndex++) {
@@ -475,7 +487,7 @@ public:// private:
             }
             ret += getLineScore(line, isBlack);
         }
-        if (debug) cout << "右上到左下" << ret << endl;
+        if (debug) std::cout << "右上到左下" << ret << endl;
         // 左上到右下
         for (int i = 10; i >= 0; --i) {
             memset(line, 0, sizeof line);
@@ -484,7 +496,7 @@ public:// private:
             }
             ret += getLineScore(line, isBlack);
         }
-        if (debug) cout << "左上到右下" << ret << endl;
+        if (debug) std::cout << "左上到右下" << ret << endl;
         for (int i = -1; i >= -10; --i) {
             memset(line, 0, sizeof line);
             for (int y = 1, x = y - i, lineIndex = 0; x <= 15; x++, y++, lineIndex++) {
@@ -492,7 +504,7 @@ public:// private:
             }
             ret += getLineScore(line, isBlack);
         }
-        if (debug) cout << "左上到右下" << ret << endl;
+        if (debug) std::cout << "左上到右下" << ret << endl;
         return ret;
     }
 
@@ -501,7 +513,7 @@ public:// private:
         auto start = std::chrono::high_resolution_clock::now();
         
         ScoreCoordQueue ret;
-        int x = 8, y = 8;
+        int x = getMedian(xstack), y = getMedian(ystack);
         if ((!thereIsNoChessNearby({x, y}) and isValidInMap({x, y}))){
             int baseScore = evaluateOnePoint(isBlack, {x, y});//没有落子前的分数
             m_map[x][y] = isBlack ? BLACK_CHESS : WHITE_CHESS;
@@ -552,7 +564,7 @@ public:// private:
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         int time_consuming = duration.count();
-        cout << "generatePossibleMove took " << time_consuming << "ms" << endl;
+        std::cout << "generatePossibleMove took " << time_consuming << "ms" << endl;
         
         return ret;
     }
@@ -602,6 +614,7 @@ int ChessEngine::m_map[16][16] = {0};
 int ChessEngine::searchFloor = 4;
 int ChessEngine::maxMoveCount = 8;
 bool ChessEngine::isBlack = true;
+vector<int> ChessEngine::xstack, ChessEngine::ystack;
 
 ACEngine ChessEngine::blackForbidden({
     {"111111", -10000},       // 长连禁手 - 6子及以上
@@ -664,24 +677,46 @@ ACEngine ChessEngine::whiteEngine({
 
 void test_forbidden(){
     ChessEngine engine;
+    // vector<Coord> seq({
+    //     {2,3},
+    //     {10,1},
+    //     {4,3},
+    //     {10,3},
+    //     {3,2},
+    //     {10,5},
+    //     {3,4},
+    //     {10,7},
+    //     {5,3},
+    //     {10,9},
+    //     {6,3},
+    //     {10,11},
+    //     // {7,3},
+    //     // {10,13},
+    // });
+
+    // engine.initMapWithSeq({
+    //     {7,6},
+    //     {8,6},
+    //     {7,7},
+    //     {8,7},
+    //     {7,8},
+    //     {7,5},
+    //     {7,9},
+    //     {7,10},
+    //     {6,9},
+    //     {8,8},
+    //     {5,10},
+    //     {8,9},
+    //     {8,10},
+    // });
     engine.initMapWithSeq({
-        {2,3},
-        {10,1},
-        {4,3},
-        {10,3},
-        {3,2},
-        {10,5},
-        {3,4},
-        {10,7},
-        {5,3},
-        {10,9},
-        {6,3},
-        {10,11},
-        // {7,3},
-        // {10,13},
+        {8,8},
+        {8,13},
     });
     engine.printMap();
-    cout << engine.isValidInMap({3,3}) << endl;
+    std::cout << engine.isValidInMap({8,12}) << endl;
+    Coord white_step = engine.getMaxCoord();
+    std::cout << white_step.x << " " << white_step.y << endl;
 }
 
 void test_game(){
@@ -692,14 +727,14 @@ void test_game(){
         engine.step(black_step); 
         if(engine.someoneWin(black_step)){
             engine.printMap();
-            cout << "round " << round << " black win!" << endl;
+            std::cout << "round " << round << " black win!" << endl;
             break;
         }
         Coord white_step = engine.getMaxCoord();
         engine.step(white_step);
         if(engine.someoneWin(white_step)){
             engine.printMap();
-            cout << "round " << round << " white win!" << endl;
+            std::cout << "round " << round << " white win!" << endl;
             break;
         }
         engine.printMap();
@@ -708,6 +743,6 @@ void test_game(){
 }
 
 int main() {
-    test_game();
+    test_forbidden();
     return 0;
 }

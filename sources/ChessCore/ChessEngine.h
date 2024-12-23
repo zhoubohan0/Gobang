@@ -52,15 +52,16 @@ public:
     //检查这个点有没有人赢
     static bool someoneWin(Coord coord);
 
+    static bool isValidInMap(Coord coord);
+    //现在要下的是黑棋
+    static bool isBlackNow();
+
 private:
     //检查这个点在这个方向上有几个连续的棋子
     static int checkByStep(Coord now, int x_step, int y_step);
 
     //评估整个棋盘 如果是黑棋返回黑棋的得分 如果是白棋返回白棋的得分
     static int evaluateAll(bool isBlackNow);
-
-    //现在要下的是黑棋
-    static bool isBlackNow();
 
     //返回这个棋子的字符表示
     static inline char chessChar(int chessType);
@@ -69,8 +70,6 @@ private:
     static bool isNoChessDown();
 
     static bool isEmptyBoard();
-
-    static bool isValidInMap(Coord coord);
 
     //判断这个点附近有没有棋子 附近隔着一个棋子也算
     static inline bool thereIsNoChessNearby(Coord coord);
@@ -84,6 +83,8 @@ private:
     //生成所有可能的走法
     static ScoreCoordQueue generatePossibleMove(bool isBlack);
 
+    static std::vector<ScoreCoord> generatePossibleMoveVec(bool isBlackNow);
+
     //评估一个点所在位置放射状的四条线的评分和 越大对当前棋子越有利
     static int evaluateOnePoint(bool isBlackNow, Coord coord);
 
@@ -96,7 +97,6 @@ private:
 private:
     //[横坐标→][纵坐标↓] 坐标边界1开始15结束 0--NO_CHESS
     static int (*m_map)[16];
-    static bool isBlack;
     static int maxMoveCount;
     static ACEngine blackForbidden;
     static ACEngine blackFiveLoose;
@@ -104,6 +104,7 @@ private:
     static ACEngine whiteEngine;
 
 public:
+    static bool isBlack;
     static int searchFloor;
 };
 
