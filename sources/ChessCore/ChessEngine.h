@@ -12,7 +12,7 @@
 
 //可以5 7 9（比较慢了）
 #ifndef SEARCH_FLOOR
-#define SEARCH_FLOOR 3
+#define SEARCH_FLOOR 4
 #endif
 
 //给possibleMove使用的结构体
@@ -39,6 +39,8 @@ public:
 
     //检查这个点有没有人赢
     static bool someoneWin(Coord coord);
+
+    static bool isValidInMap(Coord coord);
 
 private:
     //检查这个点在这个方向上有几个连续的棋子
@@ -71,12 +73,18 @@ private:
     //评估一个点所在位置放射状的四条线的评分和 越大对当前棋子越有利
     static int evaluateOnePoint(bool isBlackNow, Coord coord);
 
+    static bool isForbidden(Coord coord, bool isBlack);
+
+    static int getLineForbiddenScore(const char *line, bool isBlack);
+
 private:
     //[横坐标→][纵坐标↓] 坐标边界1开始15结束 0--NO_CHESS
     static int (*m_map)[16];
 
     static ACEngine blackEngine;
     static ACEngine whiteEngine;
+    static ACEngine blackForbidden;
+    static ACEngine blackFiveLoose;
 
 public:
     static int searchFloor;

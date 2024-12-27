@@ -68,7 +68,8 @@ bool ChessManager::isP2Turn() {
 }
 
 bool ChessManager::isValidInMap(Coord coord) {
-    return m_map[coord.x][coord.y] == NO_CHESS; // TODO
+    // return m_map[coord.x][coord.y] == NO_CHESS; // TODO
+    return ChessEngine::isValidInMap(coord);
 }
 
 bool ChessManager::thereIsNoComputer() {

@@ -48,6 +48,94 @@ ACEngine ChessEngine::whiteEngine = {
         {"000200", 20},
         {"002000", 20},};
 
+ACEngine ChessEngine::blackForbidden({
+    {"111111", -10000},       // 长连禁手 - 6子及以上
+    {"011110", -1},       // 活四
+    {"011112", -1},       // 冲四
+    {"211110", -1},       // 冲四
+    {"11110", -1},        // 冲四
+    {"01111", -1},        // 冲四
+    {"11011", -1},        // 跳四
+    {"10111", -1},        // 跳四
+    {"11101", -1},        // 跳四
+    {"011100", -1},       // 活三
+    {"001110", -1},       // 活三
+    {"011010", -1},       // 活三
+    {"010110", -1}        // 活三
+});
+
+ACEngine ChessEngine::blackFiveLoose({
+    {"11111", 1000000},
+});
+
+int ChessEngine::getLineForbiddenScore(const char *line, bool isBlack){
+    assert(isBlack);
+    int forbiddenScore = blackForbidden.ACSearch(line);
+    if (forbiddenScore <= -10000) return -1; // 长连
+    else if (forbiddenScore <= -1){
+        int fiveScore = blackFiveLoose.ACSearch(line);
+        return fiveScore > 0? fiveScore: -1;
+    } 
+    return 0;
+}
+
+bool ChessEngine::isForbidden(Coord coord, bool isBlack) {
+    int ret = 0;
+    char line[17] = {};
+    //coord所在位置的竖向
+    for (int x = 1, lineIndex = 0; x <= 15; ++x, lineIndex++) {
+        line[lineIndex] = chessChar(m_map[x][coord.y]);
+    }
+    ret += getLineForbiddenScore(line, isBlack);
+    memset(line, 0, sizeof line);
+    //coord所在位置的横向
+    for (int y = 1, lineIndex = 0; y <= 15; ++y, lineIndex++) {
+        line[lineIndex] = chessChar(m_map[coord.x][y]);
+    }
+    ret += getLineForbiddenScore(line, isBlack);
+    memset(line, 0, sizeof line);
+    // y = -x + y0 + x0
+    int b = coord.x + coord.y;
+    if (b <= 16) {
+        for (int x = b - 1, y = 1, lineIndex = 0; x >= 1; x--, y++, lineIndex++) {
+            line[lineIndex] = chessChar(m_map[x][y]);
+        }
+    } else {
+        for (int x = 15, y = b - 15, lineIndex = 0; y <= 15; x--, y++, lineIndex++) {
+            line[lineIndex] = chessChar(m_map[x][y]);
+        }
+    }
+    ret += getLineForbiddenScore(line, isBlack);
+    memset(line, 0, sizeof line);
+    // y = x + y0 - x0
+    int a = coord.x - coord.y;
+    if (a >= 0) {
+        for (int x = a + 1, y = 1, lineIndex = 0; x <= 15; x++, y++, lineIndex++) {
+            line[lineIndex] = chessChar(m_map[x][y]);
+        }
+    } else {
+        for (int x = 1, y = -a + 1, lineIndex = 0; y <= 15; x++, y++, lineIndex++) {
+            line[lineIndex] = chessChar(m_map[x][y]);
+        }
+    }
+    ret += getLineForbiddenScore(line, isBlack);
+    return ret <= -2;
+}
+
+bool ChessEngine::isValidInMap(Coord coord){
+    bool isEmpty = m_map[coord.x][coord.y] == NO_CHESS;
+    bool isBlack = isBlackNow();
+    if (!isBlack) return isEmpty;
+    else{
+        if (!isEmpty) return false;
+        m_map[coord.x][coord.y] = BLACK_CHESS;
+        bool isforbodden = isForbidden(coord,isBlack);
+        m_map[coord.x][coord.y] = NO_CHESS;
+        return !isforbodden;
+    }
+}
+
+
 int (*ChessEngine::m_map)[16] = nullptr;
 
 void ChessEngine::initMap(int (*map)[16]) {
@@ -72,6 +160,7 @@ int ChessEngine::abSearch(int floor, int alpha, int beta, bool isBlackNow, Coord
     Coord tempSearchResult{};
     std::vector<ScoreCoord> possibleMove = generatePossibleMove(isBlackNow);
     for (auto &now: possibleMove) {
+        if(!isValidInMap(now.coord))continue;
         moveCount++;
         if (moveCount > 8) break; //只搜索前8个可能的落子点
         int x = now.coord.x, y = now.coord.y;
@@ -108,10 +197,39 @@ std::vector<ScoreCoord> ChessEngine::generatePossibleMove(bool isBlackNow) {
     PROFILE_FUNCTION
     std::vector<ScoreCoord> ret;
     ret.reserve(225); // 15 * 15
-    for (int x = 1; x <= 15; ++x) {
-        for (int y = 1; y <= 15; ++y) {
-            if (thereIsNoChessNearby({x, y}))continue;
-            if (m_map[x][y] != NO_CHESS)continue;
+
+    int x = 8, y = 8;
+    if ((!thereIsNoChessNearby({x, y}) and isValidInMap({x, y}))){
+        int baseScore = evaluateOnePoint(isBlackNow, {x, y});//没有落子前的分数
+        m_map[x][y] = isBlackNow ? BLACK_CHESS : WHITE_CHESS;
+        int myScore = evaluateOnePoint(isBlackNow, {x, y});//我下这点我会得到的分数
+        m_map[x][y] = isBlackNow ? WHITE_CHESS : BLACK_CHESS;
+        int rivalScore = evaluateOnePoint(!isBlackNow, {x, y});//敌方下这点会得到的分数
+        m_map[x][y] = NO_CHESS;
+        ret.push_back({(myScore - baseScore) + (rivalScore - (-baseScore)), {x, y}});//要让我获益最大 或者能让敌方获益最大的点下棋
+    }
+    int NoChessNearbyCount = 0;
+    int direction = 0, step_size = 1, steps_taken = 0;
+    int directions[4][2] = {
+        {0, 1},  // right
+        {1, 0},  // down
+        {0, -1}, // left
+        {-1, 0}  // up
+    };
+    while(true){
+        for (int i = 0; i < step_size; ++i) {
+            x += directions[direction][0];
+            y += directions[direction][1];
+            if (x < 1 or x > 15 or y < 1 or y > 15) return ret;
+
+            bool isNoChessNearby = thereIsNoChessNearby({x, y});
+            NoChessNearbyCount += isNoChessNearby;
+            if (NoChessNearbyCount > 50){ // prune: 如果周围没有棋子 就停止搜索
+                std::shuffle(ret.begin(), ret.end(), std::mt19937(std::random_device()()));
+                std::sort(ret.begin(), ret.end(), [](const ScoreCoord &a, const ScoreCoord &b) {return a.score > b.score;});
+                return ret;
+            } 
+            if (isNoChessNearby or m_map[x][y] != NO_CHESS)continue;
             int baseScore = evaluateOnePoint(isBlackNow, {x, y});//没有落子前的分数
             m_map[x][y] = isBlackNow ? BLACK_CHESS : WHITE_CHESS;
             int myScore = evaluateOnePoint(isBlackNow, {x, y});//我下这点我会得到的分数
@@ -120,7 +238,33 @@ std::vector<ScoreCoord> ChessEngine::generatePossibleMove(bool isBlackNow) {
             m_map[x][y] = NO_CHESS;
             ret.push_back({(myScore - baseScore) + (rivalScore - (-baseScore)), {x, y}});//要让我获益最大 或者能让敌方获益最大的点下棋
         }
+
+        // Change direction
+        direction = (direction + 1) % 4;
+
+        // Increment steps after every two direction changes (right-left, down-up)
+        steps_taken++;
+        if (steps_taken == 2) {
+            step_size++;
+            steps_taken = 0;
+        }
     }
+
+    // for (int x = 1; x <= 15; ++x) {
+    //     for (int y = 1; y <= 15; ++y) {
+    //         if (thereIsNoChessNearby({x, y}))continue;
+    //         if (m_map[x][y] != NO_CHESS)continue;
+    //         int baseScore = evaluateOnePoint(isBlackNow, {x, y});//没有落子前的分数
+    //         m_map[x][y] = isBlackNow ? BLACK_CHESS : WHITE_CHESS;
+    //         int myScore = evaluateOnePoint(isBlackNow, {x, y});//我下这点我会得到的分数
+    //         m_map[x][y] = isBlackNow ? WHITE_CHESS : BLACK_CHESS;
+    //         int rivalScore = evaluateOnePoint(!isBlackNow, {x, y});//敌方下这点会得到的分数
+    //         m_map[x][y] = NO_CHESS;
+    //         ret.push_back({(myScore - baseScore) + (rivalScore - (-baseScore)), {x, y}});//要让我获益最大 或者能让敌方获益最大的点下棋
+    //     }
+    // }
+
+
     std::shuffle(ret.begin(), ret.end(), std::mt19937(std::random_device()()));
     std::sort(ret.begin(), ret.end(), [](const ScoreCoord &a, const ScoreCoord &b) {
         return a.score > b.score;

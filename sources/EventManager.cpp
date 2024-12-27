@@ -65,7 +65,7 @@ void EventManager::Update() {
                 loadState();
                 break;
             case EVENT_SET_DIFFICULTY_LOW:
-                ChessEngine::searchFloor = 3;
+                ChessEngine::searchFloor = SEARCH_FLOOR;
                 break;
             case EVENT_SET_DIFFICULTY_MEDIUM:
                 ChessEngine::searchFloor = 5;
@@ -83,7 +83,7 @@ void EventManager::Update() {
                 ChessManager::computerIsPWhat = 0;
                 break;
             case EVENT_IS_WANT_TO_RETURN_TO_MAIN_MENU:
-                ChessEngine::searchFloor = 3;
+                ChessEngine::searchFloor = SEARCH_FLOOR;
                 ChessManager::computerIsPWhat = 1;
                 IS_GAMING = false;
                 IS_GAME_OVER = false;
