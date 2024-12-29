@@ -510,7 +510,7 @@ public:// private:
         
         std::vector<ScoreCoord> ret;
         ret.reserve(225); // 15 * 15
-        int x = blockCenter.x, y = blockCenter.y;
+        int x = 8, y = 8;
         if ((!thereIsNoChessNearby({x, y}) and isValidInMap({x, y}))){
             int baseScore = evaluateOnePoint(isBlackNow, {x, y});//没有落子前的分数
             m_map[x][y] = isBlackNow ? BLACK_CHESS : WHITE_CHESS;
@@ -705,22 +705,22 @@ int main()
 	reader.parse(str, input); 
 	// 分析自己收到的输入和自己过往的输出，并恢复状态
     vector<Coord> moves;
-    vector<int> x_list, y_list;
+    // vector<int> x_list, y_list;
     int turnID = input["responses"].size();
 	for (int i = 0; i <= turnID; i++) {
         int xreq = input["requests"][i]["x"].asInt() + 1, yreq = input["requests"][i]["y"].asInt() + 1;
 		moves.push_back({xreq, yreq});
-        if(xreq >= 1 and xreq <= 15) x_list.push_back(xreq);
-        if(yreq >= 1 and yreq <= 15) y_list.push_back(yreq);
+        // if(xreq >= 1 and xreq <= 15) x_list.push_back(xreq);
+        // if(yreq >= 1 and yreq <= 15) y_list.push_back(yreq);
 		if (i < turnID){
             int xres = input["responses"][i]["x"].asInt() + 1, yres = input["responses"][i]["y"].asInt() + 1;
             moves.push_back({xres, yres});
-            if(xres >= 1 and xres <= 15) x_list.push_back(xres);
-            if(yres >= 1 and yres <= 15) y_list.push_back(yres);
+            // if(xres >= 1 and xres <= 15) x_list.push_back(xres);
+            // if(yres >= 1 and yres <= 15) y_list.push_back(yres);
         } 
 	}
-    ChessEngine::blockCenter.x = getMedian(x_list);
-    ChessEngine::blockCenter.y = getMedian(y_list);
+    // ChessEngine::blockCenter.x = getMedian(x_list);
+    // ChessEngine::blockCenter.y = getMedian(y_list);
 	ChessEngine engine;
     engine.initMapWithSeq(moves);
 	// 输出决策JSON
