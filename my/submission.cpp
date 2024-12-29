@@ -278,6 +278,15 @@ public:// private:
         return true;
     }
 
+    static inline bool thereIsNoChessAround(Coord coord){ // 3 * 3 的范围内没有棋子
+        for (int i = max(1, coord.x - 1); i <= min(15, coord.x + 1); ++i) {
+            for (int j = max(1, coord.y - 1); j <= min(15, coord.y + 1); ++j) {
+                if (m_map[i][j] != NO_CHESS)return false;
+            }
+        }
+        return true;
+    }
+
     static inline bool isValidInMap(Coord coord){
         bool isEmpty = m_map[coord.x][coord.y] == NO_CHESS;
         if (!isBlack) return isEmpty;
@@ -496,21 +505,21 @@ public:// private:
     }
 
     //生成所有可能的走法
-    static ScoreCoordQueue generatePossibleMove(bool isBlack){
+    static vector<ScoreCoord> generatePossibleMove(bool isBlack){
         // auto start = std::chrono::high_resolution_clock::now();
         
-        ScoreCoordQueue ret;
+        std::vector<ScoreCoord> ret;
+        ret.reserve(225); // 15 * 15
         int x = blockCenter.x, y = blockCenter.y;
         if ((!thereIsNoChessNearby({x, y}) and isValidInMap({x, y}))){
-            int baseScore = evaluateOnePoint(isBlack, {x, y});//没有落子前的分数
-            m_map[x][y] = isBlack ? BLACK_CHESS : WHITE_CHESS;
-            int myScore = evaluateOnePoint(isBlack, {x, y});//我下这点我会得到的分数
-            m_map[x][y] = isBlack ? WHITE_CHESS : BLACK_CHESS;
-            int rivalScore = evaluateOnePoint(!isBlack, {x, y});//敌方下这点会得到的分数
+            int baseScore = evaluateOnePoint(isBlackNow, {x, y});//没有落子前的分数
+            m_map[x][y] = isBlackNow ? BLACK_CHESS : WHITE_CHESS;
+            int myScore = evaluateOnePoint(isBlackNow, {x, y});//我下这点我会得到的分数
+            m_map[x][y] = isBlackNow ? WHITE_CHESS : BLACK_CHESS;
+            int rivalScore = evaluateOnePoint(!isBlackNow, {x, y});//敌方下这点会得到的分数
             m_map[x][y] = NO_CHESS;
-            ret.push({(myScore - baseScore) + (rivalScore - (-baseScore)), {x, y}});//要让我获益最大 或者能让敌方获益最大的点下棋
+            ret.push_back({(myScore - baseScore) + (rivalScore - (-baseScore)), {x, y}});//要让我获益最大 或者能让敌方获益最大的点下棋
         }
-        int NoChessNearbyCount = 0;
         int direction = 0, step_size = 1, steps_taken = 0;
         int directions[4][2] = {
             {0, 1},  // right
@@ -518,23 +527,31 @@ public:// private:
             {0, -1}, // left
             {-1, 0}  // up
         };
-        while(true){
+        bool terminal = false;
+        int NoChessRoundCount = -1;
+        while(!terminal){
+            if(!direction){
+                if(!NoChessRoundCount)break; // prune: 如果环绕一周没有棋子 就停止搜索
+                else NoChessRoundCount = 4 * step_size + 2;
+            }
             for (int i = 0; i < step_size; ++i) {
                 x += directions[direction][0];
                 y += directions[direction][1];
-                if (x < 1 or x > 15 or y < 1 or y > 15) return ret;
+                if (x < 1 or x > 15 or y < 1 or y > 15){
+                    terminal = true; 
+                    break;
+                }
 
                 bool isNoChessNearby = thereIsNoChessNearby({x, y});
-                NoChessNearbyCount += isNoChessNearby;
-                if (NoChessNearbyCount > 25) return ret; // prune: 如果周围没有棋子 就停止搜索
-                if (isNoChessNearby or !isValidInMap({x, y}))continue;
-                int baseScore = evaluateOnePoint(isBlack, {x, y});//没有落子前的分数
-                m_map[x][y] = isBlack ? BLACK_CHESS : WHITE_CHESS;
-                int myScore = evaluateOnePoint(isBlack, {x, y});//我下这点我会得到的分数
-                m_map[x][y] = isBlack ? WHITE_CHESS : BLACK_CHESS;
-                int rivalScore = evaluateOnePoint(!isBlack, {x, y});//敌方下这点会得到的分数
+                NoChessRoundCount -= thereIsNoChessAround({x, y});
+                if (isNoChessNearby or m_map[x][y] != NO_CHESS)continue;
+                int baseScore = evaluateOnePoint(isBlackNow, {x, y});//没有落子前的分数
+                m_map[x][y] = isBlackNow ? BLACK_CHESS : WHITE_CHESS;
+                int myScore = evaluateOnePoint(isBlackNow, {x, y});//我下这点我会得到的分数
+                m_map[x][y] = isBlackNow ? WHITE_CHESS : BLACK_CHESS;
+                int rivalScore = evaluateOnePoint(!isBlackNow, {x, y});//敌方下这点会得到的分数
                 m_map[x][y] = NO_CHESS;
-                ret.push({(myScore - baseScore) + (rivalScore - (-baseScore)), {x, y}});//要让我获益最大 或者能让敌方获益最大的点下棋
+                ret.push_back({(myScore - baseScore) + (rivalScore - (-baseScore)), {x, y}});//要让我获益最大 或者能让敌方获益最大的点下棋
             }
 
             // Change direction
@@ -547,6 +564,11 @@ public:// private:
                 steps_taken = 0;
             }
         }
+
+        std::shuffle(ret.begin(), ret.end(), std::mt19937(std::random_device()()));
+        std::sort(ret.begin(), ret.end(), [](const ScoreCoord &a, const ScoreCoord &b) {
+            return a.score > b.score;
+        });
         
         // auto end = std::chrono::high_resolution_clock::now();
         // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -558,23 +580,24 @@ public:// private:
     
 
     //alpha-beta剪枝搜索
-    static int abSearch(int floor, int alpha, int beta, bool isBlack, Coord &searchResult){
-        int tmpScore, moveCount = maxMoveCount;
+    static int abSearch(int floor, int alpha, int beta, bool isBlackNow, Coord &searchResult){
+        int tmpScore, moveCount = 0;
         Coord tempSearchResult{};
-        ScoreCoordQueue possibleMove = generatePossibleMove(isBlack);
-        while(!possibleMove.empty() and moveCount--){
-            auto now = possibleMove.top();
-            possibleMove.pop();
+        std::vector<ScoreCoord> possibleMove = generatePossibleMove(isBlackNow);
+        for (auto &now: possibleMove) {
+            if(!isValidInMap(now.coord))continue;
+            moveCount++;
+            if (moveCount > 8) break; //TODO: heuristic 
             int x = now.coord.x, y = now.coord.y;
-            m_map[x][y] = isBlack ? BLACK_CHESS : WHITE_CHESS;
+            m_map[x][y] = isBlackNow ? BLACK_CHESS : WHITE_CHESS;
             if (someoneWin({x, y})) {//如果有人赢了 必定是下这个子的人赢了
                 searchResult = {x, y};
-                tmpScore = evaluateAll(isBlack);//返回这个局面最高的得分，也就是赢局的分数
+                tmpScore = evaluateAll(isBlackNow);//返回这个局面最高的得分，也就是赢局的分数
                 m_map[x][y] = NO_CHESS;
                 return tmpScore;
             }
             if (floor == 1) {//如果只看这一步子 那就是这一步子所有可能的得分中的最大值
-                tmpScore = evaluateAll(isBlack);
+                tmpScore = evaluateAll(isBlackNow);
                 m_map[x][y] = NO_CHESS;
                 if (tmpScore > alpha) {
                     alpha = tmpScore;
@@ -582,7 +605,7 @@ public:// private:
                 }
                 continue;
             }
-            tmpScore = -abSearch(floor - 1, -beta, -alpha, !isBlack, tempSearchResult);//不然得分就是我下了之后的对方的所能得到的最高分取负
+            tmpScore = -abSearch(floor - 1, -beta, -alpha, !isBlackNow, tempSearchResult);//不然得分就是我下了之后的对方的所能得到的最高分取负
             m_map[x][y] = NO_CHESS;
             if (tmpScore >= beta) {
                 return beta;
@@ -594,7 +617,6 @@ public:// private:
         }
         return alpha;
     }
-
 };
 
 int ChessEngine::m_map[16][16] = {0};
@@ -624,8 +646,8 @@ ACEngine ChessEngine::blackFiveLoose({
 
 
 ACEngine ChessEngine::blackEngine({
-    {"11111",  50000},
-    {"011110", 4320},
+    {"11111",  500000},
+    {"011110", 24320},
     {"011100", 720},
     {"001110", 720},
     {"011010", 720},
@@ -643,8 +665,8 @@ ACEngine ChessEngine::blackEngine({
 });
 
 ACEngine ChessEngine::whiteEngine({
-    {"22222",  50000},
-    {"022220", 4320},
+    {"22222",  500000},
+    {"022220", 24320},
     {"022200", 720},
     {"002220", 720},
     {"022020", 720},
