@@ -4,6 +4,7 @@
 #include <queue>
 #include <cassert>
 #include <iostream>
+#include <fstream> 
 #include <cstring>
 #include <algorithm>
 #include <random>
@@ -225,21 +226,30 @@ public:// private:
     static ACEngine blackForbidden;
     static ACEngine blackFiveLoose;
     static void printMap(){
+        cout<<"   ";for (int i = 1; i <= 15; ++i){if(i<10)cout<<"  "<<i;else cout<<" "<<i;}cout<<endl;
         for (int i = 1; i <= 15; ++i) {
+            if(i<10)cout<<"  "<<i;else cout<<" "<<i;
             for (int j = 1; j <= 15; ++j) {
-                cout << m_map[i][j] << " ";
+                cout << "  "<<  m_map[i][j];
             }
             cout << endl;
         }
     }
 
-    void initMapWithSeq(vector<Coord> seq){
-        int curChess = BLACK_CHESS;
+    void initMapWithSeq(vector<Coord> seq, bool debug=false){
+        int curChess = BLACK_CHESS, round = 1;
         for (auto &coord: seq) {
             if (coord.x < 1 or coord.x > 15 or coord.y < 1 or coord.y > 15) continue;
             m_map[coord.x][coord.y] = curChess;
+            round += curChess == BLACK_CHESS;
+            cout << "round " << round << ": " << (curChess == BLACK_CHESS ? "black" : "white") << " (" << coord.x << ", " << coord.y << ")\n";
             curChess = WHITE_CHESS + BLACK_CHESS - curChess;
+            if (debug and curChess == BLACK_CHESS and round > 25) {
+                printMap();
+                cout << endl;
+            }
         }
+        printMap();
     }
 
     void step(Coord coord){
@@ -707,24 +717,47 @@ void test_forbidden(){
     cout << engine.isValidInMap({3,3}) << endl;
 }
 
+void save(vector<Coord>record) {
+    fstream file("record.txt", ios::out);
+    for(auto &coord: record){
+        file << coord.x << " " << coord.y << endl;
+    }
+    file.close();
+}
 
+vector<Coord> load(){
+    fstream file("record.txt", ios::in);
+    if(!file.is_open()){
+        return {};
+    }
+    vector<Coord>record;
+    int x, y;
+    while(file >> x >> y){
+        record.push_back({x, y});
+    }
+    file.close();
+    return record;
+}
 
 void test_game(){
     ChessEngine engine;
-    engine.initMapWithSeq({});
+    vector<Coord>record = load();
+    engine.initMapWithSeq(record, false);
     for(int round = 1; round <=15*15/2; ++round){
         Coord black_step = engine.getMaxCoord();
-        engine.step(black_step); 
+        engine.step(black_step); record.push_back(black_step);
         if(engine.someoneWin(black_step)){
             engine.printMap();
             cout << "round " << round << " black win!" << endl;
+            save(record);
             break;
         }
         Coord white_step = engine.getMaxCoord();
-        engine.step(white_step);
+        engine.step(white_step); record.push_back(white_step);
         if(engine.someoneWin(white_step)){
             engine.printMap();
             cout << "round " << round << " white win!" << endl;
+            save(record);
             break;
         }
         engine.printMap();
